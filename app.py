@@ -89,7 +89,7 @@ if uploaded_file:
             and "__macosx" not in f.lower()
         ][0]
 
-        status.info("Étape 3 sur 4 : Analyse des données")
+        status.info("Analyse des données en cours...")
         progress.progress(40)
 
         with z.open(csv_file) as f:
@@ -135,7 +135,7 @@ if uploaded_file:
                     min(40 + nb_chunks * 2, 85)
                 )
 
-    status.info("Étape 4 sur 4 : Vérification des doublons")
+    status.info("Vérification des doublons")
     progress.progress(90)
 
     duplicate_emails = sum(
