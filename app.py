@@ -11,19 +11,28 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
 
-    start = time.time()
+    progress = st.progress(0)
+    status = st.empty()
 
-    st.success("ZIP reçu")
+    t0 = time.time()
 
+    status.write("📥 Fichier reçu")
+    progress.progress(10)
+
+    status.write("📦 Ouverture du ZIP...")
     with zipfile.ZipFile(uploaded_file) as z:
 
-        st.success("ZIP ouvert")
+        progress.progress(40)
 
         files = z.namelist()
 
-        st.write("Fichiers trouvés :")
+        status.write(f"📄 {len(files)} fichier(s) trouvé(s)")
+        progress.progress(70)
+
         st.write(files)
 
-    st.success(
-        f"Terminé en {time.time() - start:.1f} secondes"
+    progress.progress(100)
+
+    status.write(
+        f"✅ Terminé en {time.time() - t0:.1f} secondes"
     )
