@@ -1,19 +1,17 @@
 import streamlit as st
 import requests
 
-st.title("Test SharePoint")
+st.title("Test fichier SharePoint")
 
-url = st.text_input(
-    "URL du fichier SharePoint",
-    value="https://hyteck.sharepoint.com"
-)
+url = st.text_input("Lien du fichier")
 
-if st.button("Tester l'accès"):
+if st.button("Tester"):
+
     try:
-        r = requests.get(url, timeout=20)
+        r = requests.get(url, allow_redirects=True, timeout=30)
 
-        st.write("Status code :", r.status_code)
-        st.write("Headers :", dict(r.headers))
+        st.write("Status :", r.status_code)
+        st.write("URL finale :", r.url)
 
     except Exception as e:
         st.error(str(e))
