@@ -4,6 +4,14 @@ import zipfile
 import time
 from collections import Counter
 
+password = st.text_input(
+    "Code d'accès",
+    type="password"
+)
+
+if password != st.secrets["APP_PASSWORD"]:
+    st.stop()
+
 st.set_page_config(
     page_title="Contrôle Base Clients",
     layout="wide"
