@@ -1,5 +1,8 @@
 import streamlit as st
 
-st.title("Customer Data Checker")
+st.title("Test upload")
 
-st.write("Application en cours de construction")
+file = st.file_uploader("Dépose ton CSV")
+
+if file:
+    st.success(f"Fichier reçu : {file.size / 1024 / 1024:.1f} MB")
