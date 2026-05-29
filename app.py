@@ -1,7 +1,7 @@
 import streamlit as st
+import pandas as pd
 import zipfile
-import time
-import polars as pl
+from collections import Counter
 
 st.set_page_config(
     page_title="Customer Data Checker",
@@ -11,8 +11,7 @@ st.set_page_config(
 st.title("Customer Data Checker")
 
 st.warning(
-    "⚠️ Les exports Klaviyo sont volumineux. "
-    "L'envoi du fichier peut prendre plusieurs minutes avant le démarrage de l'analyse."
+    "Les exports volumineux peuvent nécessiter plusieurs minutes de traitement."
 )
 
 uploaded_file = st.file_uploader(
@@ -22,20 +21,19 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
 
-    start_total = time.time()
-
     progress = st.progress(0)
+    status = st.empty()
 
-    current_step = st.empty()
-    timer = st.empty()
+    consent_counts = Counter()
+    email_counts = Counter()
 
-    current_step.info("📥 Étape 1/4 : Fichier reçu")
-    progress.progress(25)
+    status.info("Étape 1 sur 4 : Fichier reçu")
+    progress.progress(10)
 
     with zipfile.ZipFile(uploaded_file) as z:
 
-        current_step.info("📦 Étape 2/4 : Ouverture du ZIP")
-        progress.progress(50)
+        status.info("Étape 2 sur 4 : Ouverture du fichier")
+        progress.progress(25)
 
         csv_file = [
             f for f in z.namelist()
@@ -43,106 +41,103 @@ if uploaded_file:
             and "__macosx" not in f.lower()
         ][0]
 
-        st.success(f"📄 Fichier détecté : {csv_file}")
-
-        current_step.info("📊 Étape 3/4 : Lecture du fichier complet")
+        status.info("Étape 3 sur 4 : Analyse des données")
+        progress.progress(40)
 
         with z.open(csv_file) as f:
 
-            start = time.time()
-
-            df = pl.read_csv(
+            chunks = pd.read_csv(
                 f,
-                columns=[
-                    "Email",
-                    "Email Marketing Consent"
-                ],
-                ignore_errors=True
+                usecols=["Email", "Email Marketing Consent"],
+                chunksize=500_000,
+                dtype=str
             )
 
-            progress.progress(75)
+            nb_chunks = 0
+            total_rows = 0
 
-            st.success(
-                f"✅ Fichier chargé en {time.time() - start:.1f} secondes"
-            )
+            for chunk in chunks:
 
-            st.write(
-                f"📈 Nombre de lignes : {len(df):,}".replace(",", " ")
-            )
+                nb_chunks += 1
 
-        current_step.info("🔎 Étape 4/4 : Calcul des indicateurs")
+                chunk["Email"] = (
+                    chunk["Email"]
+                    .fillna("")
+                    .str.strip()
+                    .str.lower()
+                )
 
-        consent_col = "Email Marketing Consent"
-        email_col = "Email"
+                chunk["Email Marketing Consent"] = (
+                    chunk["Email Marketing Consent"]
+                    .fillna("EMPTY")
+                    .replace("", "EMPTY")
+                )
 
-        df = df.with_columns(
-            pl.when(
-                pl.col(consent_col).is_null()
-                | (pl.col(consent_col) == "")
-            )
-            .then(pl.lit("EMPTY"))
-            .otherwise(pl.col(consent_col))
-            .alias(consent_col)
-        )
+                consent_counts.update(
+                    chunk["Email Marketing Consent"]
+                )
 
-        result = (
-            df
-            .group_by(consent_col)
-            .len()
-            .rename({"len": "Nb lignes"})
-            .sort("Nb lignes", descending=True)
-        )
+                email_counts.update(
+                    chunk["Email"]
+                )
 
-        total = result["Nb lignes"].sum()
+                total_rows += len(chunk)
 
-        result = result.with_columns(
-            (
-                pl.col("Nb lignes") * 100 / total
-            )
-            .round(1)
-            .alias("%")
-        )
+                progression = min(
+                    40 + (nb_chunks * 2),
+                    85
+                )
 
-        total_row = pl.DataFrame({
-            consent_col: ["Total"],
-            "Nb lignes": [int(total)],
-            "%": [100.0]
+                progress.progress(progression)
+
+    status.info("Étape 4 sur 4 : Vérification des doublons")
+    progress.progress(90)
+
+    duplicate_emails = sum(
+        1
+        for count in email_counts.values()
+        if count > 1
+    )
+
+    total = sum(consent_counts.values())
+
+    results = []
+
+    for status_name, count in sorted(
+        consent_counts.items(),
+        key=lambda x: x[1],
+        reverse=True
+    ):
+        results.append({
+            "Email Marketing Consent": status_name,
+            "Nb lignes": f"{count:,}".replace(",", " "),
+            "%": round((count / total) * 100, 1)
         })
 
-        result = pl.concat([
-            result.cast({
-                consent_col: pl.Utf8,
-                "Nb lignes": pl.Int64,
-                "%": pl.Float64
-            }),
-            total_row
-        ])
+    results.append({
+        "Email Marketing Consent": "Total",
+        "Nb lignes": f"{total:,}".replace(",", " "),
+        "%": 100.0
+    })
 
-        duplicate_emails = (
-            df
-            .group_by(email_col)
-            .len()
-            .filter(pl.col("len") > 1)
-            .height
-        )
+    progress.progress(100)
 
-        progress.progress(100)
+    status.success("Analyse terminée")
 
-        current_step.success("✅ Analyse terminée")
+    st.write(
+        f"Nombre total de lignes analysées : "
+        f"{total_rows:,}".replace(",", " ")
+    )
 
-        timer.success(
-            f"Temps total : {time.time() - start_total:.1f} secondes"
-        )
+    st.subheader("Résultats")
 
-        st.subheader("Résultats")
+    st.dataframe(
+        pd.DataFrame(results),
+        use_container_width=True,
+        hide_index=True
+    )
 
-        st.dataframe(
-            result.to_pandas(),
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.metric(
-            "Emails en doublon",
-            f"{duplicate_emails:,}".replace(",", " ")
-        )
+    st.metric(
+        "Emails en doublon",
+        f"{duplicate_emails:,}".replace(",", " ")
+    )
