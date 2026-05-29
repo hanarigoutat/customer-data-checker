@@ -4,42 +4,6 @@ import zipfile
 import time
 from collections import Counter, defaultdict
 
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-
-if not st.session_state.authenticated:
-
-    password = st.text_input(
-        "Code d'accès",
-        type="password"
-    )
-
-    if password == "":
-        st.stop()
-
-    if password == "CRM2026":
-        st.session_state.authenticated = True
-        st.rerun()
-
-    st.error("Code d'accès incorrect")
-    st.stop()
-
-st.markdown("""
-<style>
-.block-container {
-    max-width: 1000px;
-    padding-top: 2rem;
-}
-
-h1 {
-    text-align: center;
-}
-
-[data-testid="stMetricValue"] {
-    font-size: 2rem;
-}
-</style>
-""", unsafe_allow_html=True)
 
 st.title("Contrôle Base Clients")
 
