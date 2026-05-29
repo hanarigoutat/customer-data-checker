@@ -17,10 +17,10 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
 
-    t0 = time.time()
+    start_total = time.time()
 
     st.write("✅ ZIP uploadé")
-    st.write(f"Taille du ZIP : {uploaded_file.size / 1024 / 1024:.1f} MB")
+    st.write(f"Taille ZIP : {uploaded_file.size / 1024 / 1024:.1f} MB")
 
     try:
 
@@ -33,15 +33,15 @@ if uploaded_file:
                 if f.lower().endswith(".csv")
             ]
 
-            st.write(f"✅ Nombre de CSV trouvés : {len(csv_files)}")
+            st.write(f"✅ {len(csv_files)} CSV trouvé(s)")
 
-            if len(csv_files) == 0:
+            if not csv_files:
                 st.error("Aucun CSV trouvé dans le ZIP")
                 st.stop()
 
             csv_file = csv_files[0]
 
-            st.write(f"✅ CSV sélectionné : {csv_file}")
+            st.write(f"📄 CSV sélectionné : {csv_file}")
 
             with z.open(csv_file) as f:
 
@@ -69,7 +69,7 @@ if uploaded_file:
         consent_col = "Email Marketing Consent"
         email_col = "Email"
 
-        st.write("⏳ Nettoyage des valeurs vides...")
+        st.write("⏳ Préparation des données...")
 
         df = df.with_columns(
             pl.when(
@@ -81,11 +81,7 @@ if uploaded_file:
             .alias(consent_col)
         )
 
-        st.write("✅ Nettoyage terminé")
-
         st.write("⏳ Calcul des consentements...")
-
-        start = time.time()
 
         result = (
             df
@@ -94,13 +90,6 @@ if uploaded_file:
             .rename({"len": "Nb lignes"})
             .sort("Nb lignes", descending=True)
         )
-
-        st.write(
-            f"✅ Consentements calculés en {time.time() - start:.1f}s"
-        )
-
-        st.write("Statuts détectés :")
-        st.dataframe(result)
 
         total = result["Nb lignes"].sum()
 
@@ -112,37 +101,25 @@ if uploaded_file:
             .alias("%")
         )
 
-        st.write("⏳ Création de la ligne Total...")
+        # Ligne Total
+        total_row = pl.DataFrame({
+            consent_col: ["Total"],
+            "Nb lignes": [int(total)],
+            "%": [100.0]
+        })
 
-        total_row = pl.DataFrame(
-            {
-                consent_col: ["Total"],
-                "Nb lignes": [int(total)],
-                "%": [100.0]
-            },
-            schema={
+        result = pl.concat([
+            result.cast({
                 consent_col: pl.Utf8,
                 "Nb lignes": pl.Int64,
                 "%": pl.Float64
-            }
-        )
+            }),
+            total_row
+        ])
 
-        st.write("Schema result")
-        st.write(result.schema)
+        st.write("✅ Consentements calculés")
 
-        st.write("Schema total_row")
-        st.write(total_row.schema)
-
-        result = pl.concat(
-            [result, total_row],
-            how="vertical_relaxed"
-        )
-
-        st.write("✅ Ligne Total ajoutée")
-
-        st.write("⏳ Calcul des doublons emails...")
-
-        start = time.time()
+        st.write("⏳ Calcul des doublons...")
 
         duplicate_emails = (
             df
@@ -152,12 +129,10 @@ if uploaded_file:
             .height
         )
 
-        st.write(
-            f"✅ Doublons calculés en {time.time() - start:.1f}s"
-        )
+        st.write("✅ Doublons calculés")
 
         st.success(
-            f"Analyse terminée en {time.time() - t0:.1f}s"
+            f"Analyse terminée en {time.time() - start_total:.1f}s"
         )
 
         st.subheader("Résultats")
@@ -174,5 +149,5 @@ if uploaded_file:
         )
 
     except Exception as e:
-        st.error("Erreur détectée")
+        st.error("Erreur")
         st.exception(e)
