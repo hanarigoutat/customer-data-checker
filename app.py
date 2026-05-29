@@ -1,6 +1,8 @@
 import streamlit as st
+import zipfile
+import time
 
-st.title("Test upload")
+st.title("Test lecture ZIP")
 
 uploaded_file = st.file_uploader(
     "Dépose ton ZIP",
@@ -8,5 +10,20 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
-    st.success("Fichier reçu")
-    st.write(f"Taille : {uploaded_file.size / 1024 / 1024:.1f} MB")
+
+    start = time.time()
+
+    st.success("ZIP reçu")
+
+    with zipfile.ZipFile(uploaded_file) as z:
+
+        st.success("ZIP ouvert")
+
+        files = z.namelist()
+
+        st.write("Fichiers trouvés :")
+        st.write(files)
+
+    st.success(
+        f"Terminé en {time.time() - start:.1f} secondes"
+    )
