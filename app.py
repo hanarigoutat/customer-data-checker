@@ -12,8 +12,7 @@ st.title("Customer Data Checker")
 
 st.warning(
     "⚠️ Les exports Klaviyo sont volumineux. "
-    "L'envoi du fichier peut prendre plusieurs minutes avant le démarrage de l'analyse. "
-    "Merci de patienter jusqu'à l'apparition des étapes de traitement."
+    "L'envoi du fichier peut prendre plusieurs minutes avant le démarrage de l'analyse."
 )
 
 uploaded_file = st.file_uploader(
@@ -26,14 +25,16 @@ if uploaded_file:
     start_total = time.time()
 
     progress = st.progress(0)
-    status = st.empty()
 
-    status.info("Étape 1/4 : Fichier reçu")
+    current_step = st.empty()
+    timer = st.empty()
+
+    current_step.info("📥 Étape 1/4 : Fichier reçu")
     progress.progress(25)
 
     with zipfile.ZipFile(uploaded_file) as z:
 
-        status.info("Étape 2/4 : Ouverture du ZIP")
+        current_step.info("📦 Étape 2/4 : Ouverture du ZIP")
         progress.progress(50)
 
         csv_file = [
@@ -42,10 +43,9 @@ if uploaded_file:
             and "__macosx" not in f.lower()
         ][0]
 
-        st.write(f"📄 Fichier détecté : {csv_file}")
+        st.success(f"📄 Fichier détecté : {csv_file}")
 
-        status.info("Étape 3/4 : Lecture du CSV")
-        progress.progress(75)
+        current_step.info("📊 Étape 3/4 : Lecture du fichier complet")
 
         with z.open(csv_file) as f:
 
@@ -57,22 +57,92 @@ if uploaded_file:
                     "Email",
                     "Email Marketing Consent"
                 ],
-                n_rows=1000
+                ignore_errors=True
             )
 
+            progress.progress(75)
+
             st.success(
-                f"1000 lignes lues en {time.time() - start:.1f} secondes"
+                f"✅ Fichier chargé en {time.time() - start:.1f} secondes"
             )
 
             st.write(
-                f"Lignes chargées : {len(df):,}".replace(",", " ")
+                f"📈 Nombre de lignes : {len(df):,}".replace(",", " ")
             )
 
-        status.info("Étape 4/4 : Affichage des résultats")
+        current_step.info("🔎 Étape 4/4 : Calcul des indicateurs")
+
+        consent_col = "Email Marketing Consent"
+        email_col = "Email"
+
+        df = df.with_columns(
+            pl.when(
+                pl.col(consent_col).is_null()
+                | (pl.col(consent_col) == "")
+            )
+            .then(pl.lit("EMPTY"))
+            .otherwise(pl.col(consent_col))
+            .alias(consent_col)
+        )
+
+        result = (
+            df
+            .group_by(consent_col)
+            .len()
+            .rename({"len": "Nb lignes"})
+            .sort("Nb lignes", descending=True)
+        )
+
+        total = result["Nb lignes"].sum()
+
+        result = result.with_columns(
+            (
+                pl.col("Nb lignes") * 100 / total
+            )
+            .round(1)
+            .alias("%")
+        )
+
+        total_row = pl.DataFrame({
+            consent_col: ["Total"],
+            "Nb lignes": [int(total)],
+            "%": [100.0]
+        })
+
+        result = pl.concat([
+            result.cast({
+                consent_col: pl.Utf8,
+                "Nb lignes": pl.Int64,
+                "%": pl.Float64
+            }),
+            total_row
+        ])
+
+        duplicate_emails = (
+            df
+            .group_by(email_col)
+            .len()
+            .filter(pl.col("len") > 1)
+            .height
+        )
+
         progress.progress(100)
 
-        st.dataframe(df.head(20))
+        current_step.success("✅ Analyse terminée")
 
-    status.success(
-        f"✅ Analyse terminée en {time.time() - start_total:.1f} secondes"
-    )
+        timer.success(
+            f"Temps total : {time.time() - start_total:.1f} secondes"
+        )
+
+        st.subheader("Résultats")
+
+        st.dataframe(
+            result.to_pandas(),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.metric(
+            "Emails en doublon",
+            f"{duplicate_emails:,}".replace(",", " ")
+        )
