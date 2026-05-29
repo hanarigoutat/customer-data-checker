@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import zipfile
 import time
-from collections import Counter
+from collections import Counter, defaultdict
 
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
@@ -23,6 +23,7 @@ if not st.session_state.authenticated:
 
     st.error("Code d'accès incorrect")
     st.stop()
+
 st.markdown("""
 <style>
 .block-container {
@@ -46,19 +47,15 @@ st.warning(
     "Les exports volumineux peuvent nécessiter plusieurs minutes de traitement."
 )
 
-st.info(
-    """
-    Temps observés sur un export de référence (~12 millions de lignes)
+st.info("""
+**Temps observés sur un export de référence (~12 millions de lignes)**
 
-    • Transfert du fichier : environ 4 minutes
+- Transfert du fichier : environ 4 minutes
+- Analyse des données : environ 1 minute
+- Temps total : environ 5 minutes
 
-    • Analyse des données : environ 1 minute
-
-    • Temps total : environ 5 minutes
-
-    L'analyse démarre automatiquement dès la fin du transfert du fichier.
-    """
-)
+L'analyse démarre automatiquement dès la fin du transfert du fichier.
+""")
 
 uploaded_file = st.file_uploader(
     "Déposez votre export Klaviyo compressé (.zip)",
@@ -74,6 +71,7 @@ if uploaded_file:
 
     consent_counts = Counter()
     email_counts = Counter()
+    email_statuses = defaultdict(set)
 
     status.info("Étape 1 sur 4 : Fichier reçu")
     progress.progress(10)
@@ -129,6 +127,12 @@ if uploaded_file:
                     chunk["Email"]
                 )
 
+                for email, status_value in zip(
+                    chunk["Email"],
+                    chunk["Email Marketing Consent"]
+                ):
+                    email_statuses[email].add(status_value)
+
                 total_rows += len(chunk)
 
                 progress.progress(
@@ -138,10 +142,51 @@ if uploaded_file:
     status.info("Étape 4 sur 4 : Vérification des doublons")
     progress.progress(90)
 
+    unique_emails = len(email_counts)
+
     duplicate_emails = sum(
         1
         for count in email_counts.values()
         if count > 1
+    )
+
+    duplicates_with_conflict = sum(
+        1
+        for email, statuses in email_statuses.items()
+        if email_counts[email] > 1
+        and len(statuses) > 1
+    )
+
+    duplicates_same_status = sum(
+        1
+        for email, statuses in email_statuses.items()
+        if email_counts[email] > 1
+        and len(statuses) == 1
+    )
+
+    duplicate_export = []
+
+    for email, count in email_counts.items():
+
+        if count <= 1:
+            continue
+
+        statuses = sorted(
+            list(email_statuses[email])
+        )
+
+        duplicate_export.append({
+            "email": email,
+            "nb_occurrences": count,
+            "marketing_statuses": ",".join(statuses),
+            "status_conflict":
+                "YES"
+                if len(statuses) > 1
+                else "NO"
+        })
+
+    duplicates_df = pd.DataFrame(
+        duplicate_export
     )
 
     expected_statuses = [
@@ -212,12 +257,37 @@ if uploaded_file:
 
     with col1:
         st.metric(
-            "Emails en doublon",
-            f"{duplicate_emails:,}".replace(",", " ")
+            "Emails uniques distincts",
+            f"{unique_emails:,}".replace(",", " ")
         )
 
     with col2:
         st.metric(
-            "Nombre total de lignes",
-            f"{total:,}".replace(",", " ")
+            "Emails présents plusieurs fois",
+            f"{duplicate_emails:,}".replace(",", " ")
         )
+
+    col3, col4 = st.columns(2)
+
+    with col3:
+        st.metric(
+            "Doublons avec conflit de statut",
+            f"{duplicates_with_conflict:,}".replace(",", " ")
+        )
+
+    with col4:
+        st.metric(
+            "Doublons avec statut identique",
+            f"{duplicates_same_status:,}".replace(",", " ")
+        )
+
+    csv = duplicates_df.to_csv(
+        index=False
+    ).encode("utf-8")
+
+    st.download_button(
+        label="Télécharger les doublons (CSV)",
+        data=csv,
+        file_name="doublons_marketing.csv",
+        mime="text/csv"
+    )
