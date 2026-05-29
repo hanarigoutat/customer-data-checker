@@ -28,11 +28,19 @@ h1 {
 
 st.title("Contrôle Base Clients")
 
+st.warning(
+    "Les exports volumineux peuvent nécessiter plusieurs minutes de traitement."
+)
+
 st.info(
     """
-    Export attendu : fichier ZIP issu de Klaviyo.
+    Temps observés sur un export de référence (~12 millions de lignes)
 
-    Les exports volumineux peuvent nécessiter plusieurs minutes de transfert avant le démarrage de l'analyse.
+    • Transfert du fichier : environ 4 minutes
+    • Analyse des données : environ 1 minute
+    • Temps total : environ 5 minutes
+
+    L'analyse démarre automatiquement dès la fin du transfert du fichier.
     """
 )
 
