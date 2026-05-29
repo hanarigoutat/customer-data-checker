@@ -1,17 +1,39 @@
 import streamlit as st
 import pandas as pd
 import zipfile
+import time
 from collections import Counter
 
 st.set_page_config(
-    page_title="Customer Data Checker",
+    page_title="Contrôle Base Clients",
     layout="wide"
 )
 
-st.title("Customer Data Checker")
+st.markdown("""
+<style>
+.block-container {
+    max-width: 1000px;
+    padding-top: 2rem;
+}
 
-st.warning(
-    "Les exports volumineux peuvent nécessiter plusieurs minutes de traitement."
+h1 {
+    text-align: center;
+}
+
+[data-testid="stMetricValue"] {
+    font-size: 2rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("Contrôle Base Clients")
+
+st.info(
+    """
+    Export attendu : fichier ZIP issu de Klaviyo.
+
+    Les exports volumineux peuvent nécessiter plusieurs minutes de transfert avant le démarrage de l'analyse.
+    """
 )
 
 uploaded_file = st.file_uploader(
@@ -20,6 +42,8 @@ uploaded_file = st.file_uploader(
 )
 
 if uploaded_file:
+
+    start_total = time.time()
 
     progress = st.progress(0)
     status = st.empty()
@@ -83,12 +107,9 @@ if uploaded_file:
 
                 total_rows += len(chunk)
 
-                progression = min(
-                    40 + (nb_chunks * 2),
-                    85
+                progress.progress(
+                    min(40 + nb_chunks * 2, 85)
                 )
-
-                progress.progress(progression)
 
     status.info("Étape 4 sur 4 : Vérification des doublons")
     progress.progress(90)
@@ -99,45 +120,80 @@ if uploaded_file:
         if count > 1
     )
 
+    expected_statuses = [
+        "SUBSCRIBED",
+        "NEVER_SUBSCRIBED",
+        "UNSUBSCRIBED",
+        "EMPTY"
+    ]
+
     total = sum(consent_counts.values())
 
     results = []
 
-    for status_name, count in sorted(
-        consent_counts.items(),
-        key=lambda x: x[1],
-        reverse=True
-    ):
+    for status_name in expected_statuses:
+
+        count = consent_counts.get(status_name, 0)
+
+        pct = (
+            round((count / total) * 100, 1)
+            if total > 0
+            else 0
+        )
+
         results.append({
             "Email Marketing Consent": status_name,
             "Nb lignes": f"{count:,}".replace(",", " "),
-            "%": round((count / total) * 100, 1)
+            "%": f"{pct:.1f}%".replace(".", ",")
         })
 
     results.append({
         "Email Marketing Consent": "Total",
         "Nb lignes": f"{total:,}".replace(",", " "),
-        "%": 100.0
+        "%": "100,0%"
     })
 
+    result_df = pd.DataFrame(results)
+
     progress.progress(100)
+    progress.empty()
+
+    duration = round(time.time() - start_total)
+
+    minutes = duration // 60
+    seconds = duration % 60
 
     status.success("Analyse terminée")
 
-    st.write(
-        f"Nombre total de lignes analysées : "
-        f"{total_rows:,}".replace(",", " ")
+    st.caption(
+        f"{total_rows:,} lignes analysées"
+        .replace(",", " ")
+    )
+
+    st.caption(
+        f"Temps d'analyse : {minutes} min {seconds} sec"
     )
 
     st.subheader("Résultats")
 
     st.dataframe(
-        pd.DataFrame(results),
+        result_df,
         use_container_width=True,
         hide_index=True
     )
 
-    st.metric(
-        "Emails en doublon",
-        f"{duplicate_emails:,}".replace(",", " ")
-    )
+    st.subheader("Contrôles")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric(
+            "Emails en doublon",
+            f"{duplicate_emails:,}".replace(",", " ")
+        )
+
+    with col2:
+        st.metric(
+            "Nombre total de lignes",
+            f"{total:,}".replace(",", " ")
+        )
