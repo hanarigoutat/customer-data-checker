@@ -190,7 +190,7 @@ if uploaded_file:
     )
 
     st.caption(
-        f"Temps total estimé (transfert + analyse) : {minutes} min {seconds} sec"
+        f"Temps total estimé : {minutes} min {seconds} sec"
     )
 
     st.subheader("Résultats")
