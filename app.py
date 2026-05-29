@@ -4,23 +4,25 @@ import zipfile
 import time
 from collections import Counter
 
-password = st.text_input(
-    "Code d'accès",
-    type="password"
-)
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
 
-if password == "":
-    st.stop()
+if not st.session_state.authenticated:
 
-if password != "CRM2026":
+    password = st.text_input(
+        "Code d'accès",
+        type="password"
+    )
+
+    if password == "":
+        st.stop()
+
+    if password == "CRM2026":
+        st.session_state.authenticated = True
+        st.rerun()
+
     st.error("Code d'accès incorrect")
     st.stop()
-
-st.set_page_config(
-    page_title="Contrôle Base Clients",
-    layout="wide"
-)
-
 st.markdown("""
 <style>
 .block-container {
