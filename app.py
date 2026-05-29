@@ -80,7 +80,7 @@ if uploaded_file:
 
     with zipfile.ZipFile(uploaded_file) as z:
 
-        status.info("Étape 2 sur 4 : Ouverture du fichier")
+        status.info("Ouverture du fichier")
         progress.progress(25)
 
         csv_file = [
