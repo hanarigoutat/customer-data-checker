@@ -3,7 +3,7 @@ import zipfile
 import time
 import polars as pl
 
-st.title("Lecture CSV")
+st.title("Test lecture CSV")
 
 uploaded_file = st.file_uploader(
     "Dépose ton ZIP",
@@ -29,12 +29,17 @@ if uploaded_file:
             df = pl.read_csv(
                 f,
                 columns=["Email", "Email Marketing Consent"],
-                n_rows=1000
+                n_rows=100000
             )
+
+            elapsed = time.time() - start
 
             st.success(
-                f"1000 lignes lues en {time.time()-start:.1f}s"
+                f"100 000 lignes lues en {elapsed:.1f}s"
             )
 
-            st.write(df.head())
-            st.write(f"Lignes chargées : {len(df):,}")
+            st.write(
+                f"Lignes chargées : {len(df):,}".replace(",", " ")
+            )
+
+            st.dataframe(df.head(20))
