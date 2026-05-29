@@ -1,5 +1,10 @@
 import streamlit as st
+import polars as pl
 
-st.title("Test")
+st.title("Test Polars")
 
-st.success("L'application fonctionne")
+df = pl.DataFrame({
+    "a": [1, 2, 3]
+})
+
+st.write(df)
