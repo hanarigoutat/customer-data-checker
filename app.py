@@ -9,7 +9,11 @@ password = st.text_input(
     type="password"
 )
 
-if password != st.secrets["APP_PASSWORD"]:
+if password == "":
+    st.stop()
+
+if password != "CRM2026":
+    st.error("Code d'accès incorrect")
     st.stop()
 
 st.set_page_config(
