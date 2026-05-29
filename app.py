@@ -41,6 +41,8 @@ st.info(
     • Temps total : environ 5 minutes
 
     L'analyse démarre automatiquement dès la fin du transfert du fichier.
+
+    Merci de ne pas fermer la fenêtre pendant le traitement.
     """
 )
 
