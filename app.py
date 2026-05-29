@@ -183,7 +183,8 @@ if uploaded_file:
     progress.empty()
 
     duration = round(time.time() - start_total)
-
+# Ajout de 3 min 45 sec correspondant au temps moyen de transfert
+duration += 225
     minutes = duration // 60
     seconds = duration % 60
 
