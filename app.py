@@ -1,10 +1,23 @@
 import streamlit as st
-import polars as pl
+import zipfile
 
-st.title("Test Polars")
+st.title("Test ZIP")
 
-df = pl.DataFrame({
-    "a": [1, 2, 3]
-})
+uploaded_file = st.file_uploader(
+    "Dépose un ZIP",
+    type=["zip"]
+)
 
-st.write(df)
+if uploaded_file:
+
+    st.success("ZIP uploadé")
+
+    with zipfile.ZipFile(uploaded_file) as z:
+
+        csv_files = [
+            f for f in z.namelist()
+            if f.lower().endswith(".csv")
+        ]
+
+        st.write("CSV trouvés :")
+        st.write(csv_files)
