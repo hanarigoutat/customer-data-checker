@@ -37,3 +37,4 @@ if uploaded_file:
             )
 
             st.write(df.head())
+            st.write(f"Lignes chargées : {len(df):,}")
