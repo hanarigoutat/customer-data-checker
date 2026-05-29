@@ -23,6 +23,7 @@ if not st.session_state.authenticated:
 
     st.error("Code d'accès incorrect")
     st.stop()
+
 st.markdown("""
 <style>
 .block-container {
@@ -75,22 +76,16 @@ if uploaded_file:
     consent_counts = Counter()
     email_counts = Counter()
 
-    status.info("Étape 1 sur 4 : Fichier reçu")
-    progress.progress(10)
-
     with zipfile.ZipFile(uploaded_file) as z:
 
-        status.info("Ouverture du fichier")
-        progress.progress(25)
+        status.info("Analyse des données en cours...")
+        progress.progress(40)
 
         csv_file = [
             f for f in z.namelist()
             if f.lower().endswith(".csv")
             and "__macosx" not in f.lower()
         ][0]
-
-        status.info("Analyse des données en cours...")
-        progress.progress(40)
 
         with z.open(csv_file) as f:
 
@@ -134,9 +129,6 @@ if uploaded_file:
                 progress.progress(
                     min(40 + nb_chunks * 2, 85)
                 )
-
-    status.info("Vérification des doublons")
-    progress.progress(90)
 
     duplicate_emails = sum(
         1
@@ -183,8 +175,10 @@ if uploaded_file:
     progress.empty()
 
     duration = round(time.time() - start_total)
-# Ajout de 3 min 45 sec correspondant au temps moyen de transfert
+
+    # Ajout de 3 min 45 sec correspondant au temps moyen de transfert
     duration += 225
+
     minutes = duration // 60
     seconds = duration % 60
 
@@ -196,7 +190,7 @@ if uploaded_file:
     )
 
     st.caption(
-        f"Temps d'analyse : {minutes} min {seconds} sec"
+        f"Temps total estimé (transfert + analyse) : {minutes} min {seconds} sec"
     )
 
     st.subheader("Résultats")
