@@ -37,12 +37,12 @@ st.info(
     Temps observés sur un export de référence (~12 millions de lignes)
 
     • Transfert du fichier : environ 4 minutes
+
     • Analyse des données : environ 1 minute
+
     • Temps total : environ 5 minutes
 
     L'analyse démarre automatiquement dès la fin du transfert du fichier.
-
-    Merci de ne pas fermer la fenêtre pendant le traitement.
     """
 )
 
